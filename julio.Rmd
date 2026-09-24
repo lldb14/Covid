@@ -1,0 +1,1948 @@
+---
+title: "Resultados"
+author: "Laura Luc?a Dom?nguez"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+# Todas las variables CALI Y PALMIRA
+```{r,warning=FALSE}
+#factominer
+library(bootstrap)
+library(factoextra)
+library(FactoMineR)
+library(haven)
+library(ade4)
+library(xtable)
+library(readr)
+library(data.table)
+#library(ff)
+#library(ffbase)
+library(bigmemory)
+library(foreach)
+library(doParallel)
+library(biglm)
+library(Factoshiny)
+
+library(readxl)
+CaliyPalmira<-read_excel("C:/LAURA LUCIA/U/9/Tesis/MARZO/CaliyPalmira-TAINA.xlsx")
+
+names(CaliyPalmira)
+
+CaliyPalmira$creenvirus<-as.factor(CaliyPalmira$creenvirus)
+CaliyPalmira$contac_covid<-as.factor(CaliyPalmira$contac_covid)
+CaliyPalmira$dx_covid<-as.factor(CaliyPalmira$dx_covid)
+```
+
+
+```{r}
+names(CaliyPalmira)<-c(
+  #1.voluntariedad
+  "x11",
+  "x12",
+  #2.conocimiento
+  "x21",
+  "x22", #p26
+  "x23",
+  "x24",
+  "x25", #p30
+  #3.incertidumbre
+  "x31", #p33
+  "x32", #p35
+  "x33", #p36
+  #4.gubernamental
+  "x41", 
+  "x42", 
+  "x43",
+  "x44",#"recomen_efectiva",
+  #5.salud
+  "x51",
+  #"p41", #factor
+  "x52",
+  #6.medios de comunicaci?n
+  "x61", #total_medios_comu
+  "x62", #p43
+  #"mensaje", #categ?rica p72
+  #7.probabilidad de contagio
+  "x71",
+  "x72",
+  "x73",
+  "x74",
+  "x75", 
+  "x76",
+  "x77",
+  #8.severidad
+  "x81",
+  "x82",
+  "x83",
+  "x84",
+  #9.susceptibilidad
+  "x91", 
+  "x92",
+  "x93",
+  "x94",
+  #"p59_1", #factor
+  #"p59_2", #factor
+  #"p59_3", #factor
+  #"p59_4", #factor
+  "x95",
+  #10.cumplimiento
+  "x101", #p61
+  "x102",
+  "x103",
+  "x104",
+  "x105", #p76
+  "x106",
+  #otras
+  "id",
+  "Municipio"
+)
+```
+
+
+```{r}
+#recodificar la voluntariedad
+library(car)
+summary(CaliyPalmira$x11) #de 0 a 5
+
+CaliyPalmira$x11 <- recode(CaliyPalmira$x11,"5=0; 4=1; 3=2; 2=3; 1=4; 0=5")
+summary(CaliyPalmira$x12) #de 0 a 8
+CaliyPalmira$x12 <- recode(CaliyPalmira$x12,"8=0; 7=1; 6=2; 5=3; 4=4; 3=5; 2=6; 1=7; 0=8")
+```
+
+```{r}
+#x75 [23]
+x75N<-as.factor(CaliyPalmira$x75)
+summary(x75N)
+
+#x77 [25]
+x77N<-as.factor(CaliyPalmira$x77)
+summary(x77N)
+```
+
+
+## AFM CON TODAS LAS VARIABLES
+```{r}
+##An?lisis factorial m?ltiple
+CaliyPalmira.FMA<-MFA(CaliyPalmira[,c(19:34)],
+                      group=c(#2,
+                              #5,
+                              #3,
+                              #4,
+                              #2,
+                              #2, #3
+                              7,
+                              4,
+                              5
+                              #6
+                              ),
+                      type=c(#'s',
+                             #'s',
+                             #'n',
+                             #'s', #n
+                             #'s',
+                             #'s', #n
+                             's',
+                             's',
+                             's'#,
+                             #'s'
+                             ),
+                      name.group=c(#"Voluntariedad",
+                                   #"Conocimiento",  
+                                   #"Incertidumbre",
+                                   #"Confianza gubernamental",
+                                   #"Confianza sector salud",
+                                   #"Confianza medios",
+                                   "Probabilidad de contagio",
+                                   "Severidad",
+                                   "Susceptibilidad"), #,
+                                   #"Cumplimiento"),
+                      #num.group.sup=c(3),
+                      graph=FALSE)
+
+CaliyPalmira.FMA$eig
+CaliyPalmira.FMA$group$contrib
+CaliyPalmira.FMA$group$correlation[,1:3]
+
+Coordenadas<-round(CaliyPalmira.FMA$quanti.var$coord[,c(1,2,3)],3);Coordenadas
+Contribu<-round(CaliyPalmira.FMA$quanti.var$contrib[,c(1,2,3)],3);Contribu
+
+Tabla<-cbind(Coordenadas,Contribu);Tabla
+
+plot.MFA(CaliyPalmira.FMA, choix="group",title="Representaci?n de grupos")
+#plot.MFA(CaliyPalmira.FMA, choix="ind",lab.par=FALSE)
+library(ggrepel)
+options(ggrepel.max.overlaps = Inf)
+#dim 1-2
+plot.MFA(CaliyPalmira.FMA, choix="var",habillage='group',title="C?rculo de correlaci?n", repel = TRUE)
+```
+
+## IPRG
+```{r}
+#--------------------------?NDICE DE PERCEPCI?N GLOBAL-----------------------------------------------#####
+
+res.mfa_severidad=CaliyPalmira.FMA
+
+#Datos
+Severidad=CaliyPalmira[,c(19:34)]
+
+Coord1_severidad <-res.mfa_severidad$global.pca$var$coord[,1];Coord1_severidad
+lp_severidad<-res.mfa_severidad$eig[1];lp_severidad #VALOR PROPIO
+Vp_severidad<-Coord1_severidad/sqrt(lp_severidad);Vp_severidad #VECTOR PROPIO
+Pesos_severidad<-(Vp_severidad/sum(Vp_severidad));Pesos_severidad # PESOS RELATIVOS DE LAS VARIABLES
+
+sum(Pesos_severidad)
+data.frame(round(Pesos_severidad,3))
+res.mfa_severidad$eig
+
+Ind_severidad<-as.matrix(Severidad)%*%Pesos_severidad
+Imin_severidad<-min(Ind_severidad);Imin_severidad
+Imax_severidad<-max(Ind_severidad);Imax_severidad
+
+Ind_2_severidad3<-round(((Ind_severidad-Imin_severidad)/(Imax_severidad-Imin_severidad))*100,2) #con este ?ndice se hace el cluster
+min(Ind_2_severidad3)
+max(Ind_2_severidad3)
+
+C8<-cbind(Ind_2_severidad3,CaliyPalmira)
+
+summary(C8$Ind_2_severidad3);sd(C8$Ind_2_severidad3)
+```
+
+
+
+### K-means
+```{r}
+set.seed(1234)
+kmeans <- kmeans(C8$Ind_2_severidad3, 3, iter.max = 1000, nstart = 10);kmeans
+
+#windows();fviz_cluster(kmeans, data = C8)
+
+C8$cluster <- kmeans$cluster
+summary(C8)
+
+kmeans$centers
+tapply(Ind_2_severidad3,kmeans$cluster,summary)
+```
+
+## BASES CON IPRG K-MEANS
+
+```{r}
+#descriptivas final ####
+
+#recodificar la voluntariedad
+library(car)
+#summary(C8$cluster) #de 1 a 3
+#C8$cluster <- recode(C8$cluster, "1=Bajo; 2=Alto; 3=Medio")
+
+C8$cluster<-factor(C8$cluster,levels=c("2","1","3"),labels = c("1.Bajo","2.Medio","3.Alto"))
+summary(C8)
+
+table(C8$cluster)
+```
+
+
+
+## DESCRIPTIVAS
+
+```{r}
+###------------------------------descriptivas-------------------------------#### 
+
+library(readxl)
+exploratorio <- read_excel("C:/LAURA LUCIA/U/9/Tesis/MARZO/exploratorio/exploratorio.xlsx")
+
+C9<-cbind(C8$Ind_2_severidad,C8$cluster,exploratorio)
+
+summary(C9)
+#View(C9) #base de datos cali y palmira con la columna ?ndice
+
+#edad
+summary(C9$Edad)
+#C9[,"Edad_grupos"] <- cut(C9$Edad, breaks = c(18,29,59,76),labels = c("De 18 a 29 a?os", "De 30 a 59 a?os", "M?s de 60 a?os"))
+head(C9)
+summary(C9$`C8$cluster`)
+
+##Funci?n para generar las tablas
+CualiG<-function(Variable,var2){
+  T_1<-table(Variable,var2)
+  p_1<-prop.table(T_1,1)*100
+  p_F<-round(chisq.test(T_1)$p.value,3)
+  #T_2<-table(Variable)
+  #pp_2<-prop.table(T_2)*100
+  Cual<-cbind(T_1,#T_2,
+              p_1,p_F
+              #,pp_2)
+              )
+  colnames(Cual)<-c("Bajo","Medio","Alto","%Bajo","%Medio","%Alto","p-valor")
+  Cual
+}
+
+### Creaci?n de todas las tablas
+
+Tablas_<-function(C9,Var_r){
+  Edad<-CualiG(C9$Edad_g,Var_r)
+  Sexo<-CualiG(C9$Sexo,Var_r)
+  Raza<-CualiG(C9$Raza_Cat,Var_r)
+  Residencia<-CualiG(C9$AreaResid,Var_r)
+  Estrato<-CualiG(C9$cat_estrato,Var_r)
+  Educacion<-CualiG(C9$Educacion,Var_r)
+  Ingresos<-CualiG(C9$Ingresos_Cat,Var_r)
+  Ocupacion<-CualiG(C9$Ocupacion_Cat,Var_r)
+  rbind(Edad,Sexo, Raza,Residencia,Estrato,Educacion,Ingresos,Ocupacion)
+  }
+
+C9$Grupo=C8$cluster;dim(C9)
+#C9<-na.omit(C9)
+TablasFinal<-Tablas_(C9,C9$Grupo);TablasFinal
+
+setwd("C:/LAURA LUCIA/U/9/Tesis/MARZO")
+
+write.csv2(TablasFinal,"Tablas2.csv")
+
+#LATEX
+
+#TablasF2 <- read.csv2("C:/LAURA LUCIA/U/9/Tesis/MARZO/TablasF2.csv")
+#View(TablasF2)
+
+#print(xtable(TablasF2), include.rownames = FALSE)
+
+#summary(C8$Ind_2_severidad)
+#round(sd(C8$Ind_2_severidad),2)
+
+```
+
+
+```{r}
+acm <- read_excel("C:/LAURA LUCIA/U/9/Tesis/MARZO/exploratorio/ACM.xlsx")
+C9<-cbind(C8$Ind_2_severidad,C8$cluster,acm)
+
+setwd("C:/LAURA LUCIA/U/10/Tesis/REVISIONES TOVAR")
+
+write.csv2(C9,"Tabla8-7.csv")
+
+```
+
+
+
+## ACM 11-julio-2022 OCHOA
+
+```{r}
+lib_req<-c("randomForest","knitr","pROC","dplyr","MASS","visdat","doBy","FactoMineR","factoextra","caret","e1071","pROC","class","rpart","rpart.plot")# Listado de librerias requeridas por el script
+easypackages::packages(lib_req)         # Verificaci?n, instalaci?n y carga de librerias.
+```
+
+
+```{r}
+library(readxl)
+acm <- read_excel("C:/LAURA LUCIA/U/9/Tesis/MARZO/exploratorio/ACM.xlsx")
+dim(acm)
+IPRG<-C8$cluster
+Datos<-cbind(acm,
+           #C8$Ind_2_severidad,
+           IPRG);dim(Datos);summary(Datos)
+
+#estructura
+Datos = Datos %>% mutate_if(is.character,as.factor) ##Convertir cadenas de texto a caracteres
+Datos = Datos %>% mutate_all(na_if," ") ##Datos vac?os a NA
+
+## Nombres de las variables
+level_EDAD=c("18-29"="18-29","30-59"="30-59",">60"=">60")
+level_GENERO=c("Mujer"="M","Hombre"="H")
+level_Municipio=c("1"="Cali","2"="Palmira")
+level_ESTRATO=c("E.1-2"="Estrato 1-2","E.3-4"="Estrato 3-4","E.5-6"="Estrato 5-6")
+level_EDUCACION=c("Universitario"="Univ","Esp/Maestr?a/Doctorado"="Mst/Doc","T?cnico/Bachillerato o menos"="T?c/Bach")
+level_INGRESOS=c("0"=">3smlv","1"="<1smlv","2"="1-3smlv")
+level_OCUPACION=c("1"="Jubilado/Desempleado","2"="Independiente","3"="Estudiante","4"="Empleado")
+level_VIVE=c("1"="Si","0"="No")
+level_IPRG=c("1.Bajo"="Bajo","2.Medio"="Medio","3.Alto"="Alto")
+```
+
+
+```{r,warning=FALSE,echo=FALSE,include=FALSE}
+## Modificaci?n del formato y transformaci?n de variables
+Datos = transform(Datos,
+Edad_g=factor(dplyr::recode(Edad_g,!!!level_EDAD),levels=c("18-29","30-59",">60"),ordered=T),
+Sexo=factor(dplyr::recode(Sexo,!!!level_GENERO)),      
+Municipio=factor(dplyr::recode(Municipio,!!!level_Municipio)),
+Estrato=factor(dplyr::recode(Estrato,!!!level_ESTRATO),levels=c("Estrato 1-2","Estrato 3-4","Estrato 5-6"),ordered=T),                Educacion=factor(dplyr::recode(Educacion,!!!level_EDUCACION),levels=c("T?c/Bach","Univ","Mst/Doc"),ordered=T), Ingresos=factor(dplyr::recode(Ingresos,!!!level_INGRESOS),levels=c("<1smlv","1-3smlv",">3smlv"),ordered=T),                    
+Ocu=factor(dplyr::recode(Ocu,!!!level_OCUPACION)), 
+ViveConEnferCronicas=factor(dplyr::recode(ViveConEnferCronicas,!!!level_VIVE)),
+IPRG=factor(dplyr::recode(IPRG,!!!level_IPRG),levels=c("Bajo","Medio","Alto"),ordered=T)
+)
+```
+
+#ejemplo ochoa
+```{r}
+dataACM<-Datos[,-1]
+res.mca<-MCA(dataACM);res.mca
+library(ggrepel)
+options(ggrepel.max.overlaps = Inf)
+plot.MCA(res.mca,choix="var",invisible=NULL,title="Graph of the variables on the MCA map",axes=c(1,2),cex=0.6)
+
+library(ggrepel)
+options(ggrepel.max.overlaps = Inf)
+
+plot.MCA(res.mca,choix="ind",invisible=NULL,axes=c(1,2),
+         selectMod=NULL,selec=NULL,habillage='none',title="MCA factor map",col.quali="magenta",cex=0.6)
+res.mca$call$Xtot ## Tabla disjuntiva completa
+res.mca$eig
+## Contribucciones
+res.mca$var$contrib
+```
+
+
+```{r}
+library(ggrepel)
+options(ggrepel.max.overlaps = Inf)
+fviz_mca_biplot(res.mca, repel=TRUE,cex=0.6,geom.ind = c("point"),geom.var =  c("point", "text"),col.ind  ="#C1CDCD", col.var="#8B1A1A")
+```
+
+# cluster
+
+```{r}
+library(FactoMineR)
+cluster.votaciones<-HCPC(res.mca,nb.clust=-1,consol=FALSE,graph=FALSE)
+library(ggrepel)
+options(ggrepel.max.overlaps = Inf)
+plot.HCPC(cluster.votaciones,choice='map',draw.tree=FALSE,title = '',axes = c(1,2),ylim=c(-1.7,1.7),ind.names = FALSE)
+##P values
+summary(cluster.votaciones)
+```
+
+
+```{r}
+#descripcion de los cluster con los valores test
+
+cluster.votaciones$desc.var #valores test
+#con todos los ejes del acm
+
+cluster.votaciones$data.clust #conjunto de datos con la clasificacion
+
+```
+
+
+```{r}
+#library(Factoshiny)
+
+#HCPCshiny(res.mca)
+
+```
+
+
+## ECM
+
+```{r}
+#Nfinal<-c()
+NfinalMedia<-c() ##En este vector se estan almacenando las proporciones, osea, cada repeticion bootstrap
+for (i in 1:1000) {
+  Severidad=CaliyPalmira[,c(19:34)]
+  res.mfa_severidad=CaliyPalmira.FMA
+  #Datos
+  Coord1_severidad <-res.mfa_severidad$global.pca$var$coord[,c(1)];Coord1_severidad
+  lp_severidad<-res.mfa_severidad$eig[c(1)];lp_severidad #VALOR PROPIO
+  Vp_severidad<-Coord1_severidad/sqrt(lp_severidad);Vp_severidad #VECTOR PROPIO
+  Pesos_severidad<-(Vp_severidad/sum(Vp_severidad));Pesos_severidad # PESOS RELATIVOS DE LAS VARIABLES
+  data.frame(round(Pesos_severidad,3))
+  Ind_severidad<-as.matrix(Severidad)%*%Pesos_severidad
+  Imin_severidad<-min(Ind_severidad);Imin_severidad
+  Imax_severidad<-max(Ind_severidad);Imax_severidad
+  Ind_2_severidad<-round(((Ind_severidad-Imin_severidad)/(Imax_severidad-Imin_severidad))*100,2) #con este ?ndice se hace el cluster
+  NfinalMedia[i]=median(sample(Ind_2_severidad,replace = TRUE))
+
+  }; NfinalMedia
+
+hist(NfinalMedia)
+
+I_mediana=round(median(NfinalMedia,3));I_mediana
+
+#EE=I_referencia-I_mediana;EE
+#EE<-round((1/1000)*sum((NfinalMedia-I_mediana)^2+((1/1000)*sum(NfinalMedia)-I_mediana)^2),2);EE
+EE<-round((1/(1000-1))*sum(NfinalMedia-median(C8$Ind_2_severidad))^2+(median(NfinalMedia)-median(C8$Ind_2_severidad))^2,2);EE
+```
+
+
+# ?ndices por separado
+
+## Probabilidad de contagio
+
+```{r}
+#-----------------------------------probabilidad de contagio-----------------------------------
+Proba<-CaliyPalmira.FMA$separate.analyses$`Probabilidad de contagio`$ind$coord[,1]
+Proba
+
+Imin_Proba<-min(Proba);Imin_Proba
+Imax_Proba<-max(Proba);Imax_Proba
+
+Ind_2_Proba3<-round(((Proba-Imin_Proba)/(Imax_Proba-Imin_Proba))*100,2) #con este ?ndice se hace el cluster
+min(Ind_2_Proba3)
+max(Ind_2_Proba3)
+```
+
+
+```{r}
+C8<-cbind(Ind_2_Proba3,CaliyPalmira)
+summary(C8$Ind_2_Proba3);sd(C8$Ind_2_Proba3)
+```
+
+### K-means
+```{r}
+set.seed(1234)
+kmeans3<- kmeans(C8$Ind_2_Proba3, 3, iter.max = 1000, nstart = 10)
+
+C8$cluster <- kmeans3$cluster
+summary(C8)
+
+kmeans3$centers
+tapply(Ind_2_Proba3,kmeans3$cluster,summary)
+```
+
+## BASES CON IPRG K-MEANS
+
+```{r}
+library(car)
+C8$cluster<-factor(C8$cluster,levels=c("2","3","1"),labels = c("1.Bajo","2.Medio","3.Alto"))
+summary(C8)
+
+table(C8$cluster)
+```
+
+### ECM
+
+```{r}
+#Nfinal<-c()
+NfinalMedia<-c() ##En este vector se estan almacenando las proporciones, osea, cada repeticion bootstrap
+for (i in 1:1000) {
+  Severidad=CaliyPalmira[,c(19:34)]
+  res.mfa_severidad=CaliyPalmira.FMA
+  #Datos
+  Proba<-CaliyPalmira.FMA$separate.analyses$`Probabilidad de contagio`$ind$coord[,1]
+  Imin_Proba<-min(Proba) 
+  Imax_Proba<-max(Proba)
+  Ind_2_Proba3<-round(((Proba-Imin_Proba)/(Imax_Proba-Imin_Proba))*100,2) 
+  #aqu? est?n las replicaciones
+  NfinalMedia[i]=median(sample(Ind_2_Proba3,replace = TRUE))
+  }; NfinalMedia
+
+hist(NfinalMedia)
+
+I_mediana=round(mean(NfinalMedia,3));I_mediana
+
+#EE=I_referencia-I_mediana;EE
+#EE<-round((1/1000)*sum((NfinalMedia-I_mediana)^2+((1/1000)*sum(NfinalMedia)-I_mediana)^2),2);EE
+EE<-round((1/(1000-1))*sum(NfinalMedia-median(C8$Ind_2_Proba3))^2+(median(NfinalMedia)-median(C8$Ind_2_Proba3))^2,2);EE
+```
+
+## INDICE AGOSTO-09 PROBABILIDAD DE CONTAGIO
+
+```{r}
+#coordenadas
+d<-data.frame(CaliyPalmira.FMA[["separate.analyses"]][["Probabilidad de contagio"]][["var"]][["coord"]])
+Coord_pc<-d[,1] 
+
+#valor propio
+vl<-data.frame(CaliyPalmira.FMA[["separate.analyses"]][["Probabilidad de contagio"]][["eig"]])
+lp_pc<-vl[1,1]
+
+#vector propio
+vp<-Coord_pc/sqrt(lp_pc)
+
+#pesos relativos
+pesos<-(vp/sum(vp))
+sum(pesos)
+
+#indice de probabilidad de contagio
+
+Proba<-CaliyPalmira[,c(19:25)]
+dim(Proba)
+
+ind3<-as.matrix(Proba)%*%pesos
+
+Imin_Proba<-min(ind3);Imin_Proba
+Imax_Proba<-max(ind3);Imax_Proba
+
+Ind_2_Proba3<-round(((ind3-Imin_Proba)/(Imax_Proba-Imin_Proba))*100,2) #con este ?ndice se hace el cluster
+
+summary(Ind_2_Proba3);sd(Ind_2_Proba3)
+```
+
+### ECM
+
+```{r}
+#Nfinal<-c()
+NfinalMedia<-c() ##En este vector se estan almacenando las proporciones, osea, cada repeticion bootstrap
+for (i in 1:1000) {
+  Proba=CaliyPalmira[,c(19:25)]
+  res.mfa_severidad=CaliyPalmira.FMA
+  #Datos
+  d<-data.frame(CaliyPalmira.FMA[["separate.analyses"]][["Probabilidad de contagio"]][["var"]][["coord"]])
+Coord_pc<-d[,1] 
+#valor propio
+vl<-data.frame(CaliyPalmira.FMA[["separate.analyses"]][["Probabilidad de contagio"]][["eig"]])
+lp_pc<-vl[1,1]
+#vector propio
+vp<-Coord_pc/sqrt(lp_pc)
+#pesos relativos
+pesos<-(vp/sum(vp))
+sum(pesos)
+
+#indice de probabilidad de contagio
+ind3<-as.matrix(Proba)%*%pesos
+
+Imin_Proba<-min(ind3)
+Imax_Proba<-max(ind3)
+
+Ind_2_Proba3<-round(((ind3-Imin_Proba)/(Imax_Proba-Imin_Proba))*100,2) #con este ?ndice se hace el cluster
+  #aqu? est?n las replicaciones
+  NfinalMedia[i]=median(sample(Ind_2_Proba3,replace = TRUE))
+  }; NfinalMedia
+
+hist(NfinalMedia)
+
+I_mediana=round(mean(NfinalMedia,3));I_mediana
+
+#EE=I_referencia-I_mediana;EE
+#EE<-round((1/1000)*sum((NfinalMedia-I_mediana)^2+((1/1000)*sum(NfinalMedia)-I_mediana)^2),2);EE
+EE<-(1/(1000-1))*sum(NfinalMedia-median(Ind_2_Proba3))^2+(median(NfinalMedia)-median(Ind_2_Proba3))^2;EE
+```
+
+
+
+## Severidad
+
+```{r}
+#-----------------------------------severidad-----------------------------------
+Sev<-CaliyPalmira.FMA$separate.analyses$Severidad$ind$coord[,1]
+Sev
+
+Imin_Sev<-min(Sev);Imin_Sev
+Imax_Sev<-max(Sev);Imax_Sev
+
+Ind_2_Sev3<-round(((Sev-Imin_Sev)/(Imax_Sev-Imin_Sev))*100,2) #con este ?ndice se hace el cluster
+min(Ind_2_Sev3)
+max(Ind_2_Sev3)
+sd(Ind_2_Sev3)
+#rbind(summary(Ind_2_Sev))
+#print(xtable(rbind(summary(Ind_2_Sev))), include.rownames = FALSE)
+C8<-cbind(Ind_2_Sev3,CaliyPalmira)
+summary(C8$Ind_2_Sev3)
+```
+
+### K-means
+```{r}
+set.seed(1234)
+kmeans3<- kmeans(C8$Ind_2_Sev3, 3, iter.max = 1000, nstart = 10)
+
+C8$cluster <- kmeans3$cluster
+summary(C8)
+
+kmeans3$centers
+tapply(Ind_2_Sev3,kmeans3$cluster,summary)
+```
+
+## BASES CON IPRG K-MEANS
+
+```{r}
+library(car)
+C8$cluster<-factor(C8$cluster,levels=c("2","3","1"),labels = c("1.Bajo","2.Medio","3.Alto"))
+summary(C8)
+
+table(C8$cluster)
+```
+
+
+```{r}
+C9<-cbind(C8$Ind_2_Sev3,C8$cluster,acm)
+
+setwd("C:/LAURA LUCIA/U/10/Tesis/REVISIONES TOVAR")
+
+write.csv2(C9,"Tabla8-7-IPSE.csv")
+
+```
+
+
+
+
+### ECM
+
+```{r}
+#Nfinal<-c()
+NfinalMedia<-c() ##En este vector se estan almacenando las proporciones, osea, cada repeticion bootstrap
+for (i in 1:1000) {
+  Severidad=CaliyPalmira[,c(19:34)]
+  res.mfa_severidad=CaliyPalmira.FMA
+  #Datos
+  Sev<-CaliyPalmira.FMA$separate.analyses$Severidad$ind$coord[,1]
+  Imin_Sev<-min(Sev)
+  Imax_Sev<-max(Sev)
+  Ind_2_Sev3<-round(((Sev-Imin_Sev)/(Imax_Sev-Imin_Sev))*100,2) #con este ?ndice se hace el cluster
+ #aqu? est?n las replicaciones
+  NfinalMedia[i]=median(sample(Ind_2_Sev3,replace = TRUE))
+  }; NfinalMedia
+
+hist(NfinalMedia)
+
+I_mediana=round(mean(NfinalMedia,3));I_mediana
+
+#EE=I_referencia-I_mediana;EE
+#EE<-round((1/1000)*sum((NfinalMedia-I_mediana)^2+((1/1000)*sum(NfinalMedia)-I_mediana)^2),2);EE
+EE<-(1/(1000-1))*sum(NfinalMedia-median(C8$Ind_2_Sev3))^2+(median(NfinalMedia)-median(C8$Ind_2_Sev3))^2;EE
+```
+
+
+
+## INDICE AGOSTO-09 SEVERIDAD
+
+```{r}
+#coordenadas
+d<-data.frame(CaliyPalmira.FMA[["separate.analyses"]][["Severidad"]][["var"]][["coord"]])
+Coord_pc<-d[,1] 
+
+#valor propio
+vl<-data.frame(CaliyPalmira.FMA[["separate.analyses"]][["Severidad"]][["eig"]])
+lp_pc<-vl[1,1]
+
+#vector propio
+vp<-Coord_pc/sqrt(lp_pc)
+
+#pesos relativos
+pesos<-(vp/sum(vp))
+sum(pesos)
+
+#indice de probabilidad de contagio
+
+Severidad<-CaliyPalmira[,c(26:29)]
+dim(Severidad)
+
+ind3<-as.matrix(Severidad)%*%pesos
+
+Imin_Proba<-min(ind3);Imin_Proba
+Imax_Proba<-max(ind3);Imax_Proba
+
+Ind_2_Proba3<-round(((ind3-Imin_Proba)/(Imax_Proba-Imin_Proba))*100,2) #con este ?ndice se hace el cluster
+
+summary(Ind_2_Proba3);sd(Ind_2_Proba3)
+```
+
+### ECM
+
+```{r}
+#Nfinal<-c()
+NfinalMedia<-c() ##En este vector se estan almacenando las proporciones, osea, cada repeticion bootstrap
+for (i in 1:1000) {
+  Severidad=CaliyPalmira[,c(26:29)]
+  res.mfa_severidad=CaliyPalmira.FMA
+  #Datos
+  d<-data.frame(CaliyPalmira.FMA[["separate.analyses"]][["Severidad"]][["var"]][["coord"]])
+Coord_pc<-d[,1] 
+#valor propio
+vl<-data.frame(CaliyPalmira.FMA[["separate.analyses"]][["Severidad"]][["eig"]])
+lp_pc<-vl[1,1]
+#vector propio
+vp<-Coord_pc/sqrt(lp_pc)
+#pesos relativos
+pesos<-(vp/sum(vp))
+sum(pesos)
+
+#indice de probabilidad de contagio
+ind3<-as.matrix(Severidad)%*%pesos
+
+Imin_Proba<-min(ind3)
+Imax_Proba<-max(ind3)
+
+Ind_2_Proba3<-round(((ind3-Imin_Proba)/(Imax_Proba-Imin_Proba))*100,2) #con este ?ndice se hace el cluster
+  #aqu? est?n las replicaciones
+  NfinalMedia[i]=median(sample(Ind_2_Proba3,replace = TRUE))
+  }; NfinalMedia
+
+hist(NfinalMedia)
+
+I_mediana=round(mean(NfinalMedia,3));I_mediana
+
+#EE=I_referencia-I_mediana;EE
+#EE<-round((1/1000)*sum((NfinalMedia-I_mediana)^2+((1/1000)*sum(NfinalMedia)-I_mediana)^2),2);EE
+EE<-round((1/(1000-1))*sum(NfinalMedia-median(Ind_2_Proba3))^2+(median(NfinalMedia)-median(Ind_2_Proba3))^2,2);EE
+```
+
+
+
+
+
+## Susceptibilidad
+
+```{r}
+#-----------------------------------susceptibilidad-----------------------------------
+SU<-CaliyPalmira.FMA$separate.analyses$Susceptibilidad$ind$coord[,1]
+
+Imin_SU<-min(SU);Imin_SU
+Imax_SU<-max(SU);Imax_SU
+
+Ind_2_SU3<-round(((SU-Imin_SU)/(Imax_SU-Imin_SU))*100,2) #con este ?ndice se hace el cluster
+min(Ind_2_SU3)
+max(Ind_2_SU3)
+sd(Ind_2_SU3)
+#rbind(summary(Ind_2_SU))
+#print(xtable(rbind(summary(Ind_2_SU))), include.rownames = FALSE)
+
+
+#-----------------------------------k-mean--------------------------------####
+C8<-cbind(Ind_2_SU3,CaliyPalmira)
+summary(C8$Ind_2_SU3)
+
+```
+
+### K-means
+```{r}
+set.seed(1234)
+kmeans3<- kmeans(C8$Ind_2_SU3, 3, iter.max = 1000, nstart = 10)
+
+C8$cluster <- kmeans3$cluster
+summary(C8)
+
+kmeans3$centers
+tapply(Ind_2_SU3,kmeans3$cluster,summary)
+```
+
+## BASES CON IPRG K-MEANS
+
+```{r}
+library(car)
+C8$cluster<-factor(C8$cluster,levels=c("2","3","1"),labels = c("1.Bajo","2.Medio","3.Alto"))
+summary(C8)
+
+table(C8$cluster)
+```
+
+### ECM
+
+```{r}
+#Nfinal<-c()
+NfinalMedia<-c() ##En este vector se estan almacenando las proporciones, osea, cada repeticion bootstrap
+for (i in 1:1000) {
+  Severidad=CaliyPalmira[,c(19:34)]
+  res.mfa_severidad=CaliyPalmira.FMA
+  #Datos
+  SU<-CaliyPalmira.FMA$separate.analyses$Susceptibilidad$ind$coord[,1]
+  Imin_SU<-min(SU)
+  Imax_SU<-max(SU)
+  Ind_2_SU3<-round(((SU-Imin_SU)/(Imax_SU-Imin_SU))*100,2) #con este ?ndice se hace el cluster
+ #aqu? est?n las replicaciones
+  NfinalMedia[i]=median(sample(Ind_2_SU3,replace = TRUE))
+  }; NfinalMedia
+
+hist(NfinalMedia)
+
+I_mediana=round(mean(NfinalMedia,3));I_mediana
+
+#EE=I_referencia-I_mediana;EE
+#EE<-round((1/1000)*sum((NfinalMedia-I_mediana)^2+((1/1000)*sum(NfinalMedia)-I_mediana)^2),2);EE
+EE<-(1/(1000-1))*sum(NfinalMedia-median(C8$Ind_2_SU3))^2+(median(NfinalMedia)-median(C8$Ind_2_SU3))^2;EE
+```
+
+## INDICE AGOSTO-09 SUSCEPTIBILIDAD
+
+```{r}
+#coordenadas
+d<-data.frame(CaliyPalmira.FMA[["separate.analyses"]][["Susceptibilidad"]][["var"]][["coord"]])
+Coord_pc<-d[,1] 
+
+#valor propio
+vl<-data.frame(CaliyPalmira.FMA[["separate.analyses"]][["Susceptibilidad"]][["eig"]])
+lp_pc<-vl[1,1]
+
+#vector propio
+vp<-Coord_pc/sqrt(lp_pc)
+
+#pesos relativos
+pesos<-(vp/sum(vp))
+sum(pesos)
+
+#indice de probabilidad de contagio
+
+Susceptibilidad<-CaliyPalmira[,c(30:34)]
+dim(Susceptibilidad)
+
+ind3<-as.matrix(Susceptibilidad)%*%pesos
+
+Imin_Proba<-min(ind3);Imin_Proba
+Imax_Proba<-max(ind3);Imax_Proba
+
+Ind_2_Proba3<-round(((ind3-Imin_Proba)/(Imax_Proba-Imin_Proba))*100,2) #con este ?ndice se hace el cluster
+
+summary(Ind_2_Proba3);sd(Ind_2_Proba3)
+```
+
+### ECM
+
+```{r}
+#Nfinal<-c()
+NfinalMedia<-c() ##En este vector se estan almacenando las proporciones, osea, cada repeticion bootstrap
+for (i in 1:1000) {
+  Susceptibilidad=CaliyPalmira[,c(30:34)]
+  res.mfa_severidad=CaliyPalmira.FMA
+  #Datos
+  d<-data.frame(CaliyPalmira.FMA[["separate.analyses"]][["Susceptibilidad"]][["var"]][["coord"]])
+Coord_pc<-d[,1] 
+#valor propio
+vl<-data.frame(CaliyPalmira.FMA[["separate.analyses"]][["Susceptibilidad"]][["eig"]])
+lp_pc<-vl[1,1]
+#vector propio
+vp<-Coord_pc/sqrt(lp_pc)
+#pesos relativos
+pesos<-(vp/sum(vp))
+sum(pesos)
+
+#indice de probabilidad de contagio
+ind3<-as.matrix(Susceptibilidad)%*%pesos
+
+Imin_Proba<-min(ind3)
+Imax_Proba<-max(ind3)
+
+Ind_2_Proba3<-round(((ind3-Imin_Proba)/(Imax_Proba-Imin_Proba))*100,2) #con este ?ndice se hace el cluster
+  #aqu? est?n las replicaciones
+  NfinalMedia[i]=median(sample(Ind_2_Proba3,replace = TRUE))
+  }; NfinalMedia
+
+hist(NfinalMedia)
+
+I_mediana=round(mean(NfinalMedia,3));I_mediana
+
+#EE=I_referencia-I_mediana;EE
+#EE<-round((1/1000)*sum((NfinalMedia-I_mediana)^2+((1/1000)*sum(NfinalMedia)-I_mediana)^2),2);EE
+EE<-round((1/(1000-1))*sum(NfinalMedia-median(Ind_2_Proba3))^2+(median(NfinalMedia)-median(Ind_2_Proba3))^2,2);EE
+```
+
+
+
+
+
+# CALI
+
+```{r}
+#---------------------?ndice de percepci?n por ciudad---------------------------####
+library(dplyr)
+
+CaliyPalmira$Municipio<-as.factor(CaliyPalmira$Municipio)
+Cali<-filter(CaliyPalmira, CaliyPalmira$Municipio=="Cali")
+
+summary(Cali)
+```
+
+```{r}
+## AFM CON TODAS LAS VARIABLES
+
+##An?lisis factorial m?ltiple
+CaliyPalmira.FMA<-MFA(Cali[,c(19:34)],
+                      group=c(#2,
+                              #5,
+                              #3,
+                              #4,
+                              #2,
+                              #2, #3
+                              7,
+                              4,
+                              5
+                              #6
+                              ),
+                      type=c(#'s',
+                             #'s',
+                             #'n',
+                             #'s', #n
+                             #'s',
+                             #'s', #n
+                             's',
+                             's',
+                             's'#,
+                             #'s'
+                             ),
+                      name.group=c(#"Voluntariedad",
+                                   #"Conocimiento",  
+                                   #"Incertidumbre",
+                                   #"Confianza gubernamental",
+                                   #"Confianza sector salud",
+                                   #"Confianza medios",
+                                   "Probabilidad de contagio",
+                                   "Severidad",
+                                   "Susceptibilidad"), #,
+                                   #"Cumplimiento"),
+                      #num.group.sup=c(3),
+                      graph=FALSE)
+
+CaliyPalmira.FMA$eig
+CaliyPalmira.FMA$group$contrib
+CaliyPalmira.FMA$group$correlation[,1:3]
+
+Coordenadas<-round(CaliyPalmira.FMA$quanti.var$coord[,c(1,2,3)],3);Coordenadas
+Contribu<-round(CaliyPalmira.FMA$quanti.var$contrib[,c(1,2,3)],3);Contribu
+
+Tabla<-cbind(Coordenadas,Contribu);Tabla
+
+plot.MFA(CaliyPalmira.FMA, choix="group",title="Representaci?n de grupos")
+#plot.MFA(CaliyPalmira.FMA, choix="ind",lab.par=FALSE)
+library(ggrepel)
+options(ggrepel.max.overlaps = Inf)
+#dim 1-2
+plot.MFA(CaliyPalmira.FMA, choix="var",habillage='group',title="C?rculo de correlaci?n", repel = TRUE)
+```
+
+## IPRG
+```{r}
+#--------------------------?NDICE DE PERCEPCI?N GLOBAL-----------------------------------------------#####
+
+res.mfa_severidad=CaliyPalmira.FMA
+
+#Datos
+Severidad=Cali[,c(19:34)]
+
+Coord1_severidad <-res.mfa_severidad$global.pca$var$coord[,1];Coord1_severidad
+lp_severidad<-res.mfa_severidad$eig[1];lp_severidad #VALOR PROPIO
+Vp_severidad<-Coord1_severidad/sqrt(lp_severidad);Vp_severidad #VECTOR PROPIO
+Pesos_severidad<-(Vp_severidad/sum(Vp_severidad));Pesos_severidad # PESOS RELATIVOS DE LAS VARIABLES
+
+sum(Pesos_severidad)
+data.frame(round(Pesos_severidad,3))
+res.mfa_severidad$eig
+
+Ind_severidad<-as.matrix(Severidad)%*%Pesos_severidad
+Imin_severidad<-min(Ind_severidad);Imin_severidad
+Imax_severidad<-max(Ind_severidad);Imax_severidad
+
+Ind_2_severidad1<-round(((Ind_severidad-Imin_severidad)/(Imax_severidad-Imin_severidad))*100,2) #con este ?ndice se hace el cluster
+min(Ind_2_severidad1)
+max(Ind_2_severidad1)
+
+C8<-cbind(Ind_2_severidad1,Cali)
+
+summary(C8$Ind_2_severidad1);sd(C8$Ind_2_severidad1)
+```
+
+## ECM
+
+```{r}
+NfinalMedia<-c() ##En este vector se estan almacenando las proporciones, osea, cada repeticion bootstrap
+for (i in 1:1000) {
+  Severidad=Cali[,c(19:34)]
+  res.mfa_severidad=CaliyPalmira.FMA
+  #Datos
+  Coord1_severidad <-res.mfa_severidad$global.pca$var$coord[,c(1)];Coord1_severidad
+  lp_severidad<-res.mfa_severidad$eig[c(1)];lp_severidad #VALOR PROPIO
+  Vp_severidad<-Coord1_severidad/sqrt(lp_severidad);Vp_severidad #VECTOR PROPIO
+  Pesos_severidad<-(Vp_severidad/sum(Vp_severidad));Pesos_severidad # PESOS RELATIVOS DE LAS VARIABLES
+  data.frame(round(Pesos_severidad,3))
+  Ind_severidad<-as.matrix(Severidad)%*%Pesos_severidad
+  Imin_severidad<-min(Ind_severidad);Imin_severidad
+  Imax_severidad<-max(Ind_severidad);Imax_severidad
+  Ind_2_severidad<-round(((Ind_severidad-Imin_severidad)/(Imax_severidad-Imin_severidad))*100,2) #con este ?ndice se hace el cluster
+  NfinalMedia[i]=median(sample(Ind_2_severidad,replace = TRUE))
+
+  }#; NfinalMedia
+
+hist(NfinalMedia)
+
+I_mediana=round(median(NfinalMedia,3));I_mediana
+
+#EE=I_referencia-I_mediana;EE
+#EE<-round((1/1000)*sum((NfinalMedia-I_mediana)^2+((1/1000)*sum(NfinalMedia)-I_mediana)^2),2);EE
+EE<-round((1/(1000-1))*sum(NfinalMedia-median(C8$Ind_2_severidad1))^2+(median(NfinalMedia)-median(C8$Ind_2_severidad1))^2,2);EE
+```
+
+# ?ndices por separado
+
+## Probabilidad de contagio
+
+```{r}
+#-----------------------------------probabilidad de contagio-----------------------------------
+Proba<-CaliyPalmira.FMA$separate.analyses$`Probabilidad de contagio`$ind$coord[,1]
+
+Imin_Proba<-min(Proba);Imin_Proba
+Imax_Proba<-max(Proba);Imax_Proba
+
+Ind_2_Proba<-round(((Proba-Imin_Proba)/(Imax_Proba-Imin_Proba))*100,2) #con este ?ndice se hace el cluster
+min(Ind_2_Proba)
+max(Ind_2_Proba)
+```
+
+
+```{r}
+C8<-cbind(Ind_2_Proba,Cali)
+summary(C8$Ind_2_Proba);sd(C8$Ind_2_Proba)
+```
+
+## ECM
+
+```{r}
+NfinalMedia<-c() ##En este vector se estan almacenando las proporciones, osea, cada repeticion bootstrap
+for (i in 1:1000) {
+  Severidad=Cali[,c(19:34)]
+  res.mfa_severidad=CaliyPalmira.FMA
+  #Datos
+  Proba<-CaliyPalmira.FMA$separate.analyses$`Probabilidad de contagio`$ind$coord[,1]
+  Imin_Proba<-min(Proba)
+  Imax_Proba<-max(Proba)
+  Ind_2_Proba<-round(((Proba-Imin_Proba)/(Imax_Proba-Imin_Proba))*100,2) 
+  #repeticiones
+  NfinalMedia[i]=median(sample(Ind_2_Proba,replace = TRUE))
+
+  }#; NfinalMedia
+
+hist(NfinalMedia)
+
+I_mediana=round(median(NfinalMedia,3));I_mediana
+
+#EE=I_referencia-I_mediana;EE
+#EE<-round((1/1000)*sum((NfinalMedia-I_mediana)^2+((1/1000)*sum(NfinalMedia)-I_mediana)^2),2);EE
+EE<-round((1/(1000-1))*sum(NfinalMedia-median(C8$Ind_2_Proba))^2+(median(NfinalMedia)-median(C8$Ind_2_Proba))^2,2);EE
+```
+
+## INDICE AGOSTO-09 PROBABILIDAD DE CONTAGIO
+
+```{r}
+#coordenadas
+d<-data.frame(CaliyPalmira.FMA[["separate.analyses"]][["Probabilidad de contagio"]][["var"]][["coord"]])
+Coord_pc<-d[,1] 
+
+#valor propio
+vl<-data.frame(CaliyPalmira.FMA[["separate.analyses"]][["Probabilidad de contagio"]][["eig"]])
+lp_pc<-vl[1,1]
+
+#vector propio
+vp<-Coord_pc/sqrt(lp_pc)
+
+#pesos relativos
+pesos<-(vp/sum(vp))
+sum(pesos)
+
+#indice de probabilidad de contagio
+
+Proba<-CaliyPalmira[,c(19:25)]
+dim(Proba)
+
+ind3<-as.matrix(Proba)%*%pesos
+
+Imin_Proba<-min(ind3);Imin_Proba
+Imax_Proba<-max(ind3);Imax_Proba
+
+Ind_2_Proba3<-round(((ind3-Imin_Proba)/(Imax_Proba-Imin_Proba))*100,2) #con este ?ndice se hace el cluster
+
+summary(Ind_2_Proba3);sd(Ind_2_Proba3)
+```
+
+### ECM
+
+```{r}
+#Nfinal<-c()
+NfinalMedia<-c() ##En este vector se estan almacenando las proporciones, osea, cada repeticion bootstrap
+for (i in 1:1000) {
+  Proba=CaliyPalmira[,c(19:25)]
+  res.mfa_severidad=CaliyPalmira.FMA
+  #Datos
+  d<-data.frame(CaliyPalmira.FMA[["separate.analyses"]][["Probabilidad de contagio"]][["var"]][["coord"]])
+Coord_pc<-d[,1] 
+#valor propio
+vl<-data.frame(CaliyPalmira.FMA[["separate.analyses"]][["Probabilidad de contagio"]][["eig"]])
+lp_pc<-vl[1,1]
+#vector propio
+vp<-Coord_pc/sqrt(lp_pc)
+#pesos relativos
+pesos<-(vp/sum(vp))
+sum(pesos)
+
+#indice de probabilidad de contagio
+ind3<-as.matrix(Proba)%*%pesos
+
+Imin_Proba<-min(ind3)
+Imax_Proba<-max(ind3)
+
+Ind_2_Proba3<-round(((ind3-Imin_Proba)/(Imax_Proba-Imin_Proba))*100,2) #con este ?ndice se hace el cluster
+  #aqu? est?n las replicaciones
+  NfinalMedia[i]=median(sample(Ind_2_Proba3,replace = TRUE))
+  }; NfinalMedia
+
+hist(NfinalMedia)
+
+I_mediana=round(mean(NfinalMedia,3));I_mediana
+
+#EE=I_referencia-I_mediana;EE
+#EE<-round((1/1000)*sum((NfinalMedia-I_mediana)^2+((1/1000)*sum(NfinalMedia)-I_mediana)^2),2);EE
+EE<-(1/(1000-1))*sum(NfinalMedia-median(Ind_2_Proba3))^2+(median(NfinalMedia)-median(Ind_2_Proba3))^2;EE
+```
+
+
+## Severidad
+
+```{r}
+#-----------------------------------severidad-----------------------------------
+Sev<-CaliyPalmira.FMA$separate.analyses$Severidad$ind$coord[,1]
+
+Imin_Sev<-min(Sev);Imin_Sev
+Imax_Sev<-max(Sev);Imax_Sev
+
+Ind_2_Sev<-round(((Sev-Imin_Sev)/(Imax_Sev-Imin_Sev))*100,2) #con este ?ndice se hace el cluster
+min(Ind_2_Sev)
+max(Ind_2_Sev)
+sd(Ind_2_Sev)
+#rbind(summary(Ind_2_Sev))
+#print(xtable(rbind(summary(Ind_2_Sev))), include.rownames = FALSE)
+C8<-cbind(Ind_2_Sev,Cali)
+summary(C8$Ind_2_Sev)
+```
+
+## ECM
+
+```{r}
+NfinalMedia<-c() ##En este vector se estan almacenando las proporciones, osea, cada repeticion bootstrap
+for (i in 1:1000) {
+  Severidad=Cali[,c(19:34)]
+  res.mfa_severidad=CaliyPalmira.FMA
+  #Datos
+  Sev<-CaliyPalmira.FMA$separate.analyses$Severidad$ind$coord[,1]
+  Imin_Sev<-min(Sev)
+  Imax_Sev<-max(Sev)
+  Ind_2_Sev<-round(((Sev-Imin_Sev)/(Imax_Sev-Imin_Sev))*100,2) #con este ?ndice se hace el cluster
+  #repeticiones
+  NfinalMedia[i]=median(sample(Ind_2_Sev,replace = TRUE))
+
+  }#; NfinalMedia
+
+hist(NfinalMedia)
+
+I_mediana=round(median(NfinalMedia,3));I_mediana
+
+#EE=I_referencia-I_mediana;EE
+#EE<-round((1/1000)*sum((NfinalMedia-I_mediana)^2+((1/1000)*sum(NfinalMedia)-I_mediana)^2),2);EE
+EE<-round((1/(1000-1))*sum(NfinalMedia-median(C8$Ind_2_Sev))^2+(median(NfinalMedia)-median(C8$Ind_2_Sev))^2,2);EE
+```
+
+## INDICE AGOSTO-09 SEVERIDAD
+
+```{r}
+#coordenadas
+d<-data.frame(CaliyPalmira.FMA[["separate.analyses"]][["Severidad"]][["var"]][["coord"]])
+Coord_pc<-d[,1] 
+
+#valor propio
+vl<-data.frame(CaliyPalmira.FMA[["separate.analyses"]][["Severidad"]][["eig"]])
+lp_pc<-vl[1,1]
+
+#vector propio
+vp<-Coord_pc/sqrt(lp_pc)
+
+#pesos relativos
+pesos<-(vp/sum(vp))
+sum(pesos)
+
+#indice de probabilidad de contagio
+
+Severidad<-CaliyPalmira[,c(26:29)]
+dim(Severidad)
+
+ind3<-as.matrix(Severidad)%*%pesos
+
+Imin_Proba<-min(ind3);Imin_Proba
+Imax_Proba<-max(ind3);Imax_Proba
+
+Ind_2_Proba3<-round(((ind3-Imin_Proba)/(Imax_Proba-Imin_Proba))*100,2) #con este ?ndice se hace el cluster
+
+summary(Ind_2_Proba3);sd(Ind_2_Proba3)
+```
+
+### ECM
+
+```{r}
+#Nfinal<-c()
+NfinalMedia<-c() ##En este vector se estan almacenando las proporciones, osea, cada repeticion bootstrap
+for (i in 1:1000) {
+  Severidad=CaliyPalmira[,c(26:29)]
+  res.mfa_severidad=CaliyPalmira.FMA
+  #Datos
+  d<-data.frame(CaliyPalmira.FMA[["separate.analyses"]][["Severidad"]][["var"]][["coord"]])
+Coord_pc<-d[,1] 
+#valor propio
+vl<-data.frame(CaliyPalmira.FMA[["separate.analyses"]][["Severidad"]][["eig"]])
+lp_pc<-vl[1,1]
+#vector propio
+vp<-Coord_pc/sqrt(lp_pc)
+#pesos relativos
+pesos<-(vp/sum(vp))
+sum(pesos)
+
+#indice de probabilidad de contagio
+ind3<-as.matrix(Severidad)%*%pesos
+
+Imin_Proba<-min(ind3)
+Imax_Proba<-max(ind3)
+
+Ind_2_Proba3<-round(((ind3-Imin_Proba)/(Imax_Proba-Imin_Proba))*100,2) #con este ?ndice se hace el cluster
+  #aqu? est?n las replicaciones
+  NfinalMedia[i]=median(sample(Ind_2_Proba3,replace = TRUE))
+  }; NfinalMedia
+
+hist(NfinalMedia)
+
+I_mediana=round(mean(NfinalMedia,3));I_mediana
+
+#EE=I_referencia-I_mediana;EE
+#EE<-round((1/1000)*sum((NfinalMedia-I_mediana)^2+((1/1000)*sum(NfinalMedia)-I_mediana)^2),2);EE
+EE<-(1/(1000-1))*sum(NfinalMedia-median(Ind_2_Proba3))^2+(median(NfinalMedia)-median(Ind_2_Proba3))^2;EE
+```
+
+
+## Susceptibilidad
+
+```{r}
+#-----------------------------------susceptibilidad-----------------------------------
+SU<-CaliyPalmira.FMA$separate.analyses$Susceptibilidad$ind$coord[,1]
+
+Imin_SU<-min(SU);Imin_SU
+Imax_SU<-max(SU);Imax_SU
+
+Ind_2_SU<-round(((SU-Imin_SU)/(Imax_SU-Imin_SU))*100,2) #con este ?ndice se hace el cluster
+min(Ind_2_SU)
+max(Ind_2_SU)
+sd(Ind_2_SU)
+#rbind(summary(Ind_2_SU))
+#print(xtable(rbind(summary(Ind_2_SU))), include.rownames = FALSE)
+
+
+#-----------------------------------k-mean--------------------------------####
+C8<-cbind(Ind_2_SU,Cali)
+summary(C8$Ind_2_SU)
+```
+
+
+## ECM
+
+```{r}
+NfinalMedia<-c() ##En este vector se estan almacenando las proporciones, osea, cada repeticion bootstrap
+for (i in 1:1000) {
+  Severidad=Cali[,c(19:34)]
+  res.mfa_severidad=CaliyPalmira.FMA
+  #Datos
+  SU<-CaliyPalmira.FMA$separate.analyses$Susceptibilidad$ind$coord[,1]
+  Imin_SU<-min(SU)
+  Imax_SU<-max(SU)
+  Ind_2_SU<-round(((SU-Imin_SU)/(Imax_SU-Imin_SU))*100,2) #con este ?ndice se hace el cluster
+  #repeticiones
+  NfinalMedia[i]=median(sample(Ind_2_SU,replace = TRUE))
+
+  }#; NfinalMedia
+
+hist(NfinalMedia)
+
+I_mediana=round(median(NfinalMedia,3));I_mediana
+
+#EE=I_referencia-I_mediana;EE
+#EE<-round((1/1000)*sum((NfinalMedia-I_mediana)^2+((1/1000)*sum(NfinalMedia)-I_mediana)^2),2);EE
+EE<-round((1/(1000-1))*sum(NfinalMedia-median(C8$Ind_2_SU))^2+(median(NfinalMedia)-median(C8$Ind_2_SU))^2,2);EE
+```
+
+## INDICE AGOSTO-09 SUSCEPTIBILIDAD
+
+```{r}
+#coordenadas
+d<-data.frame(CaliyPalmira.FMA[["separate.analyses"]][["Susceptibilidad"]][["var"]][["coord"]])
+Coord_pc<-d[,1] 
+
+#valor propio
+vl<-data.frame(CaliyPalmira.FMA[["separate.analyses"]][["Susceptibilidad"]][["eig"]])
+lp_pc<-vl[1,1]
+
+#vector propio
+vp<-Coord_pc/sqrt(lp_pc)
+
+#pesos relativos
+pesos<-(vp/sum(vp))
+sum(pesos)
+
+#indice de probabilidad de contagio
+
+Susceptibilidad<-CaliyPalmira[,c(30:34)]
+dim(Susceptibilidad)
+
+ind3<-as.matrix(Susceptibilidad)%*%pesos
+
+Imin_Proba<-min(ind3);Imin_Proba
+Imax_Proba<-max(ind3);Imax_Proba
+
+Ind_2_Proba3<-round(((ind3-Imin_Proba)/(Imax_Proba-Imin_Proba))*100,2) #con este ?ndice se hace el cluster
+
+summary(Ind_2_Proba3);sd(Ind_2_Proba3)
+```
+
+### ECM
+
+```{r}
+#Nfinal<-c()
+NfinalMedia<-c() ##En este vector se estan almacenando las proporciones, osea, cada repeticion bootstrap
+for (i in 1:1000) {
+  Susceptibilidad=CaliyPalmira[,c(30:34)]
+  res.mfa_severidad=CaliyPalmira.FMA
+  #Datos
+  d<-data.frame(CaliyPalmira.FMA[["separate.analyses"]][["Susceptibilidad"]][["var"]][["coord"]])
+Coord_pc<-d[,1] 
+#valor propio
+vl<-data.frame(CaliyPalmira.FMA[["separate.analyses"]][["Susceptibilidad"]][["eig"]])
+lp_pc<-vl[1,1]
+#vector propio
+vp<-Coord_pc/sqrt(lp_pc)
+#pesos relativos
+pesos<-(vp/sum(vp))
+sum(pesos)
+
+#indice de probabilidad de contagio
+ind3<-as.matrix(Susceptibilidad)%*%pesos
+
+Imin_Proba<-min(ind3)
+Imax_Proba<-max(ind3)
+
+Ind_2_Proba3<-round(((ind3-Imin_Proba)/(Imax_Proba-Imin_Proba))*100,2) #con este ?ndice se hace el cluster
+  #aqu? est?n las replicaciones
+  NfinalMedia[i]=median(sample(Ind_2_Proba3,replace = TRUE))
+  }; NfinalMedia
+
+hist(NfinalMedia)
+
+I_mediana=round(mean(NfinalMedia,3));I_mediana
+
+#EE=I_referencia-I_mediana;EE
+#EE<-round((1/1000)*sum((NfinalMedia-I_mediana)^2+((1/1000)*sum(NfinalMedia)-I_mediana)^2),2);EE
+EE<-(1/(1000-1))*sum(NfinalMedia-median(Ind_2_Proba3))^2+(median(NfinalMedia)-median(Ind_2_Proba3))^2;EE
+```
+
+# PALMIRA
+
+```{r}
+library(dplyr)
+
+CaliyPalmira$Municipio<-as.factor(CaliyPalmira$Municipio)
+Palmira<-filter(CaliyPalmira, CaliyPalmira$Municipio=="Palmira")
+```
+
+## AFM CON TODAS LAS VARIABLES
+```{r}
+##An?lisis factorial m?ltiple
+CaliyPalmira.FMA<-MFA(Palmira[,c(19:34)],
+                      group=c(#2,
+                              #5,
+                              #3,
+                              #4,
+                              #2,
+                              #2, #3
+                              7,
+                              4,
+                              5
+                              #6
+                              ),
+                      type=c(#'s',
+                             #'s',
+                             #'n',
+                             #'s', #n
+                             #'s',
+                             #'s', #n
+                             's',
+                             's',
+                             's'#,
+                             #'s'
+                             ),
+                      name.group=c(#"Voluntariedad",
+                                   #"Conocimiento",  
+                                   #"Incertidumbre",
+                                   #"Confianza gubernamental",
+                                   #"Confianza sector salud",
+                                   #"Confianza medios",
+                                   "Probabilidad de contagio",
+                                   "Severidad",
+                                   "Susceptibilidad"), #,
+                                   #"Cumplimiento"),
+                      #num.group.sup=c(3),
+                      graph=FALSE)
+
+CaliyPalmira.FMA$eig
+CaliyPalmira.FMA$group$contrib
+CaliyPalmira.FMA$group$correlation[,1:3]
+
+Coordenadas<-round(CaliyPalmira.FMA$quanti.var$coord[,c(1,2,3)],3);Coordenadas
+Contribu<-round(CaliyPalmira.FMA$quanti.var$contrib[,c(1,2,3)],3);Contribu
+
+Tabla<-cbind(Coordenadas,Contribu);Tabla
+
+plot.MFA(CaliyPalmira.FMA, choix="group",title="Representaci?n de grupos")
+#plot.MFA(CaliyPalmira.FMA, choix="ind",lab.par=FALSE)
+library(ggrepel)
+options(ggrepel.max.overlaps = Inf)
+#dim 1-2
+plot.MFA(CaliyPalmira.FMA, choix="var",habillage='group',title="C?rculo de correlaci?n", repel = TRUE)
+```
+
+## IPRG
+```{r}
+#--------------------------?NDICE DE PERCEPCI?N GLOBAL-----------------------------------------------#####
+
+res.mfa_severidad=CaliyPalmira.FMA
+
+#Datos
+Severidad=Palmira[,c(19:34)]
+
+Coord1_severidad <-res.mfa_severidad$global.pca$var$coord[,1];Coord1_severidad
+lp_severidad<-res.mfa_severidad$eig[1];lp_severidad #VALOR PROPIO
+Vp_severidad<-Coord1_severidad/sqrt(lp_severidad);Vp_severidad #VECTOR PROPIO
+Pesos_severidad<-(Vp_severidad/sum(Vp_severidad));Pesos_severidad # PESOS RELATIVOS DE LAS VARIABLES
+
+sum(Pesos_severidad)
+data.frame(round(Pesos_severidad,3))
+res.mfa_severidad$eig
+
+Ind_severidad<-as.matrix(Severidad)%*%Pesos_severidad
+Imin_severidad<-min(Ind_severidad);Imin_severidad
+Imax_severidad<-max(Ind_severidad);Imax_severidad
+
+Ind_2_severidad2<-round(((Ind_severidad-Imin_severidad)/(Imax_severidad-Imin_severidad))*100,2) #con este ?ndice se hace el cluster
+min(Ind_2_severidad2)
+max(Ind_2_severidad2)
+
+C8<-cbind(Ind_2_severidad2,Palmira)
+
+summary(C8$Ind_2_severidad2);sd(C8$Ind_2_severidad2)
+```
+
+## ECM
+
+```{r}
+NfinalMedia<-c() ##En este vector se estan almacenando las proporciones, osea, cada repeticion bootstrap
+for (i in 1:1000) {
+  Severidad=Palmira[,c(19:34)]
+  res.mfa_severidad=CaliyPalmira.FMA
+  #Datos
+  Coord1_severidad <-res.mfa_severidad$global.pca$var$coord[,c(1)];Coord1_severidad
+  lp_severidad<-res.mfa_severidad$eig[c(1)];lp_severidad #VALOR PROPIO
+  Vp_severidad<-Coord1_severidad/sqrt(lp_severidad);Vp_severidad #VECTOR PROPIO
+  Pesos_severidad<-(Vp_severidad/sum(Vp_severidad));Pesos_severidad # PESOS RELATIVOS DE LAS VARIABLES
+  data.frame(round(Pesos_severidad,3))
+  Ind_severidad<-as.matrix(Severidad)%*%Pesos_severidad
+  Imin_severidad<-min(Ind_severidad);Imin_severidad
+  Imax_severidad<-max(Ind_severidad);Imax_severidad
+  Ind_2_severidad<-round(((Ind_severidad-Imin_severidad)/(Imax_severidad-Imin_severidad))*100,2) #con este ?ndice se hace el cluster
+  NfinalMedia[i]=median(sample(Ind_2_severidad,replace = TRUE))
+
+  }#; NfinalMedia
+
+hist(NfinalMedia)
+
+I_mediana=round(median(NfinalMedia,3));I_mediana
+
+#EE=I_referencia-I_mediana;EE
+#EE<-round((1/1000)*sum((NfinalMedia-I_mediana)^2+((1/1000)*sum(NfinalMedia)-I_mediana)^2),2);EE
+EE<-round((1/(1000-1))*sum(NfinalMedia-median(C8$Ind_2_severidad2))^2+(median(NfinalMedia)-median(C8$Ind_2_severidad2))^2,2);EE
+```
+
+# ?ndices por separado
+
+## Probabilidad de contagio
+
+```{r}
+#-----------------------------------probabilidad de contagio-----------------------------------
+Proba<-CaliyPalmira.FMA$separate.analyses$`Probabilidad de contagio`$ind$coord[,1]
+
+Imin_Proba<-min(Proba);Imin_Proba
+Imax_Proba<-max(Proba);Imax_Proba
+
+Ind_2_Proba2<-round(((Proba-Imin_Proba)/(Imax_Proba-Imin_Proba))*100,2) #con este ?ndice se hace el cluster
+min(Ind_2_Proba2)
+max(Ind_2_Proba2)
+```
+
+
+```{r}
+C8<-cbind(Ind_2_Proba2,Palmira)
+summary(C8$Ind_2_Proba2);sd(C8$Ind_2_Proba2)
+```
+
+## ECM
+
+```{r}
+NfinalMedia<-c() ##En este vector se estan almacenando las proporciones, osea, cada repeticion bootstrap
+for (i in 1:1000) {
+  Severidad=Palmira[,c(19:34)]
+  res.mfa_severidad=CaliyPalmira.FMA
+  #Datos
+  Proba<-CaliyPalmira.FMA$separate.analyses$`Probabilidad de contagio`$ind$coord[,1]
+  Imin_Proba<-min(Proba)
+  Imax_Proba<-max(Proba)
+  Ind_2_Proba2<-round(((Proba-Imin_Proba)/(Imax_Proba-Imin_Proba))*100,2) #con este ?ndice se hace el cluster
+#repeticiones
+  NfinalMedia[i]=median(sample(Ind_2_Proba2,replace = TRUE))
+
+  }#; NfinalMedia
+
+hist(NfinalMedia)
+
+I_mediana=round(median(NfinalMedia,3));I_mediana
+
+#EE=I_referencia-I_mediana;EE
+#EE<-round((1/1000)*sum((NfinalMedia-I_mediana)^2+((1/1000)*sum(NfinalMedia)-I_mediana)^2),2);EE
+EE<-round((1/(1000-1))*sum(NfinalMedia-median(C8$Ind_2_Proba2))^2+(median(NfinalMedia)-median(C8$Ind_2_Proba2))^2,2);EE
+```
+
+## INDICE AGOSTO-09 PROBABILIDAD DE CONTAGIO
+
+```{r}
+#coordenadas
+d<-data.frame(CaliyPalmira.FMA[["separate.analyses"]][["Probabilidad de contagio"]][["var"]][["coord"]])
+Coord_pc<-d[,1] 
+
+#valor propio
+vl<-data.frame(CaliyPalmira.FMA[["separate.analyses"]][["Probabilidad de contagio"]][["eig"]])
+lp_pc<-vl[1,1]
+
+#vector propio
+vp<-Coord_pc/sqrt(lp_pc)
+
+#pesos relativos
+pesos<-(vp/sum(vp))
+sum(pesos)
+
+#indice de probabilidad de contagio
+
+Proba<-CaliyPalmira[,c(19:25)]
+dim(Proba)
+
+ind3<-as.matrix(Proba)%*%pesos
+
+Imin_Proba<-min(ind3);Imin_Proba
+Imax_Proba<-max(ind3);Imax_Proba
+
+Ind_2_Proba3<-round(((ind3-Imin_Proba)/(Imax_Proba-Imin_Proba))*100,2) #con este ?ndice se hace el cluster
+
+summary(Ind_2_Proba3);sd(Ind_2_Proba3)
+```
+
+### ECM
+
+```{r}
+#Nfinal<-c()
+NfinalMedia<-c() ##En este vector se estan almacenando las proporciones, osea, cada repeticion bootstrap
+for (i in 1:1000) {
+  Proba=CaliyPalmira[,c(19:25)]
+  res.mfa_severidad=CaliyPalmira.FMA
+  #Datos
+  d<-data.frame(CaliyPalmira.FMA[["separate.analyses"]][["Probabilidad de contagio"]][["var"]][["coord"]])
+Coord_pc<-d[,1] 
+#valor propio
+vl<-data.frame(CaliyPalmira.FMA[["separate.analyses"]][["Probabilidad de contagio"]][["eig"]])
+lp_pc<-vl[1,1]
+#vector propio
+vp<-Coord_pc/sqrt(lp_pc)
+#pesos relativos
+pesos<-(vp/sum(vp))
+sum(pesos)
+
+#indice de probabilidad de contagio
+ind3<-as.matrix(Proba)%*%pesos
+
+Imin_Proba<-min(ind3)
+Imax_Proba<-max(ind3)
+
+Ind_2_Proba3<-round(((ind3-Imin_Proba)/(Imax_Proba-Imin_Proba))*100,2) #con este ?ndice se hace el cluster
+  #aqu? est?n las replicaciones
+  NfinalMedia[i]=median(sample(Ind_2_Proba3,replace = TRUE))
+  }; NfinalMedia
+
+hist(NfinalMedia)
+
+I_mediana=round(mean(NfinalMedia,3));I_mediana
+
+#EE=I_referencia-I_mediana;EE
+#EE<-round((1/1000)*sum((NfinalMedia-I_mediana)^2+((1/1000)*sum(NfinalMedia)-I_mediana)^2),2);EE
+EE<-(1/(1000-1))*sum(NfinalMedia-median(Ind_2_Proba3))^2+(median(NfinalMedia)-median(Ind_2_Proba3))^2;EE
+```
+
+
+## Severidad
+
+```{r}
+#-----------------------------------severidad-----------------------------------
+Sev<-CaliyPalmira.FMA$separate.analyses$Severidad$ind$coord[,1]
+
+Imin_Sev<-min(Sev);Imin_Sev
+Imax_Sev<-max(Sev);Imax_Sev
+
+Ind_2_Sev2<-round(((Sev-Imin_Sev)/(Imax_Sev-Imin_Sev))*100,2) #con este ?ndice se hace el cluster
+min(Ind_2_Sev2)
+max(Ind_2_Sev2)
+sd(Ind_2_Sev2)
+#rbind(summary(Ind_2_Sev))
+#print(xtable(rbind(summary(Ind_2_Sev))), include.rownames = FALSE)
+C8<-cbind(Ind_2_Sev2,Palmira)
+summary(C8$Ind_2_Sev2)
+```
+
+## ECM
+
+```{r}
+NfinalMedia<-c() ##En este vector se estan almacenando las proporciones, osea, cada repeticion bootstrap
+for (i in 1:1000) {
+  Severidad=Palmira[,c(19:34)]
+  res.mfa_severidad=CaliyPalmira.FMA
+  #Datos
+  Sev<-CaliyPalmira.FMA$separate.analyses$Severidad$ind$coord[,1]
+  Imin_Sev<-min(Sev)
+  Imax_Sev<-max(Sev)
+  Ind_2_Sev2<-round(((Sev-Imin_Sev)/(Imax_Sev-Imin_Sev))*100,2) #con este ?ndice se hace el cluster
+#repeticiones
+  NfinalMedia[i]=median(sample(Ind_2_Sev2,replace = TRUE))
+
+  }#; NfinalMedia
+
+hist(NfinalMedia)
+
+I_mediana=round(median(NfinalMedia,3));I_mediana
+
+#EE=I_referencia-I_mediana;EE
+#EE<-round((1/1000)*sum((NfinalMedia-I_mediana)^2+((1/1000)*sum(NfinalMedia)-I_mediana)^2),2);EE
+EE<-round((1/(1000-1))*sum(NfinalMedia-median(C8$Ind_2_Sev2))^2+(median(NfinalMedia)-median(C8$Ind_2_Sev2))^2,2);EE
+```
+
+## INDICE AGOSTO-09 SEVERIDAD
+
+```{r}
+#coordenadas
+d<-data.frame(CaliyPalmira.FMA[["separate.analyses"]][["Severidad"]][["var"]][["coord"]])
+Coord_pc<-d[,1] 
+
+#valor propio
+vl<-data.frame(CaliyPalmira.FMA[["separate.analyses"]][["Severidad"]][["eig"]])
+lp_pc<-vl[1,1]
+
+#vector propio
+vp<-Coord_pc/sqrt(lp_pc)
+
+#pesos relativos
+pesos<-(vp/sum(vp))
+sum(pesos)
+
+#indice de probabilidad de contagio
+
+Severidad<-CaliyPalmira[,c(26:29)]
+dim(Severidad)
+
+ind3<-as.matrix(Severidad)%*%pesos
+
+Imin_Proba<-min(ind3);Imin_Proba
+Imax_Proba<-max(ind3);Imax_Proba
+
+Ind_2_Proba3<-round(((ind3-Imin_Proba)/(Imax_Proba-Imin_Proba))*100,2) #con este ?ndice se hace el cluster
+
+summary(Ind_2_Proba3);sd(Ind_2_Proba3)
+```
+
+### ECM
+
+```{r}
+#Nfinal<-c()
+NfinalMedia<-c() ##En este vector se estan almacenando las proporciones, osea, cada repeticion bootstrap
+for (i in 1:1000) {
+  Severidad=CaliyPalmira[,c(26:29)]
+  res.mfa_severidad=CaliyPalmira.FMA
+  #Datos
+  d<-data.frame(CaliyPalmira.FMA[["separate.analyses"]][["Severidad"]][["var"]][["coord"]])
+Coord_pc<-d[,1] 
+#valor propio
+vl<-data.frame(CaliyPalmira.FMA[["separate.analyses"]][["Severidad"]][["eig"]])
+lp_pc<-vl[1,1]
+#vector propio
+vp<-Coord_pc/sqrt(lp_pc)
+#pesos relativos
+pesos<-(vp/sum(vp))
+sum(pesos)
+
+#indice de probabilidad de contagio
+ind3<-as.matrix(Severidad)%*%pesos
+
+Imin_Proba<-min(ind3)
+Imax_Proba<-max(ind3)
+
+Ind_2_Proba3<-round(((ind3-Imin_Proba)/(Imax_Proba-Imin_Proba))*100,2) #con este ?ndice se hace el cluster
+  #aqu? est?n las replicaciones
+  NfinalMedia[i]=median(sample(Ind_2_Proba3,replace = TRUE))
+  }; NfinalMedia
+
+hist(NfinalMedia)
+
+I_mediana=round(mean(NfinalMedia,3));I_mediana
+
+#EE=I_referencia-I_mediana;EE
+#EE<-round((1/1000)*sum((NfinalMedia-I_mediana)^2+((1/1000)*sum(NfinalMedia)-I_mediana)^2),2);EE
+EE<-(1/(1000-1))*sum(NfinalMedia-median(Ind_2_Proba3))^2+(median(NfinalMedia)-median(Ind_2_Proba3))^2;EE
+```
+
+## Susceptibilidad
+
+```{r}
+#-----------------------------------susceptibilidad-----------------------------------
+SU<-CaliyPalmira.FMA$separate.analyses$Susceptibilidad$ind$coord[,1]
+
+Imin_SU<-min(SU);Imin_SU
+Imax_SU<-max(SU);Imax_SU
+
+Ind_2_SU2<-round(((SU-Imin_SU)/(Imax_SU-Imin_SU))*100,2) #con este ?ndice se hace el cluster
+min(Ind_2_SU2)
+max(Ind_2_SU2)
+sd(Ind_2_SU2)
+#rbind(summary(Ind_2_SU))
+#print(xtable(rbind(summary(Ind_2_SU))), include.rownames = FALSE)
+
+
+#-----------------------------------k-mean--------------------------------####
+C8<-cbind(Ind_2_SU2,Palmira)
+summary(C8$Ind_2_SU2)
+
+```
+
+## ECM
+
+```{r}
+NfinalMedia<-c() ##En este vector se estan almacenando las proporciones, osea, cada repeticion bootstrap
+for (i in 1:1000) {
+  Severidad=Palmira[,c(19:34)]
+  res.mfa_severidad=CaliyPalmira.FMA
+  #Datos
+  SU<-CaliyPalmira.FMA$separate.analyses$Susceptibilidad$ind$coord[,1]
+  Imin_SU<-min(SU)
+  Imax_SU<-max(SU)
+  Ind_2_SU2<-round(((SU-Imin_SU)/(Imax_SU-Imin_SU))*100,2) #con este ?ndice se hace el cluster
+#repeticiones
+  NfinalMedia[i]=median(sample(Ind_2_SU2,replace = TRUE))
+
+  }#; NfinalMedia
+
+hist(NfinalMedia)
+
+I_mediana=round(median(NfinalMedia,3));I_mediana
+
+#EE=I_referencia-I_mediana;EE
+#EE<-round((1/1000)*sum((NfinalMedia-I_mediana)^2+((1/1000)*sum(NfinalMedia)-I_mediana)^2),2);EE
+EE<-round((1/(1000-1))*sum(NfinalMedia-median(C8$Ind_2_SU2))^2+(median(NfinalMedia)-median(C8$Ind_2_SU2))^2,2);EE
+```
+
+
+## INDICE AGOSTO-09 SUSCEPTIBILIDAD
+
+```{r}
+#coordenadas
+d<-data.frame(CaliyPalmira.FMA[["separate.analyses"]][["Susceptibilidad"]][["var"]][["coord"]])
+Coord_pc<-d[,1] 
+
+#valor propio
+vl<-data.frame(CaliyPalmira.FMA[["separate.analyses"]][["Susceptibilidad"]][["eig"]])
+lp_pc<-vl[1,1]
+
+#vector propio
+vp<-Coord_pc/sqrt(lp_pc)
+
+#pesos relativos
+pesos<-(vp/sum(vp))
+sum(pesos)
+
+#indice de probabilidad de contagio
+
+Susceptibilidad<-CaliyPalmira[,c(30:34)]
+dim(Susceptibilidad)
+
+ind3<-as.matrix(Susceptibilidad)%*%pesos
+
+Imin_Proba<-min(ind3);Imin_Proba
+Imax_Proba<-max(ind3);Imax_Proba
+
+Ind_2_Proba3<-round(((ind3-Imin_Proba)/(Imax_Proba-Imin_Proba))*100,2) #con este ?ndice se hace el cluster
+
+summary(Ind_2_Proba3);sd(Ind_2_Proba3)
+```
+
+### ECM
+
+```{r}
+#Nfinal<-c()
+NfinalMedia<-c() ##En este vector se estan almacenando las proporciones, osea, cada repeticion bootstrap
+for (i in 1:1000) {
+  Susceptibilidad=CaliyPalmira[,c(30:34)]
+  res.mfa_severidad=CaliyPalmira.FMA
+  #Datos
+  d<-data.frame(CaliyPalmira.FMA[["separate.analyses"]][["Susceptibilidad"]][["var"]][["coord"]])
+Coord_pc<-d[,1] 
+#valor propio
+vl<-data.frame(CaliyPalmira.FMA[["separate.analyses"]][["Susceptibilidad"]][["eig"]])
+lp_pc<-vl[1,1]
+#vector propio
+vp<-Coord_pc/sqrt(lp_pc)
+#pesos relativos
+pesos<-(vp/sum(vp))
+sum(pesos)
+
+#indice de probabilidad de contagio
+ind3<-as.matrix(Susceptibilidad)%*%pesos
+
+Imin_Proba<-min(ind3)
+Imax_Proba<-max(ind3)
+
+Ind_2_Proba3<-round(((ind3-Imin_Proba)/(Imax_Proba-Imin_Proba))*100,2) #con este ?ndice se hace el cluster
+  #aqu? est?n las replicaciones
+  NfinalMedia[i]=median(sample(Ind_2_Proba3,replace = TRUE))
+  }; NfinalMedia
+
+hist(NfinalMedia)
+
+I_mediana=round(mean(NfinalMedia,3));I_mediana
+
+#EE=I_referencia-I_mediana;EE
+#EE<-round((1/1000)*sum((NfinalMedia-I_mediana)^2+((1/1000)*sum(NfinalMedia)-I_mediana)^2),2);EE
+EE<-(1/(1000-1))*sum(NfinalMedia-median(Ind_2_Proba3))^2+(median(NfinalMedia)-median(Ind_2_Proba3))^2;EE
+```
+
+
+
+
+# visualizacion
+
+```{r}
+pdf("AFM_plots.pdf")
+#png("mi_plot.png")
+
+#windows(height=10,width=20)                     # Abre una nueva ventana grafica con las  dimensiones predeterminadas
+par(cex.main=0.7,cex.lab=0.7,mfrow=c(3,4),oma = c(1,1,3,1)) 
+#par(mfrow=c(4,5), mar = c(5, 3.7, 2, 0.8),oma = c(1,1,3,1))
+
+#cali
+hist(Ind_2_severidad1,col="azure2",xlab="IPRG",main = "Distribuci?n de IPRG",freq = FALSE,ylim = c(0,0.035))
+hist(Ind_2_Proba,col="azure2",xlab="IPPC",main = "Distribuci?n de IPPC",freq = FALSE,ylim = c(0,0.035))
+hist(Ind_2_Sev,col="azure2",xlab="IPSE",main = "Distribuci?n de IPSE",freq = FALSE,ylim = c(0,0.035))
+hist(Ind_2_SU,col="azure2",xlab="IPSU",main = "Distribuci?n de IPSU",freq = FALSE,ylim = c(0,0.035))
+
+
+#palmira
+hist(Ind_2_severidad2,col="azure2",xlab="IPRG",main = "Distribuci?n de IPRG",freq = FALSE,ylim = c(0,0.035))
+hist(Ind_2_Proba2,col="azure2",xlab="IPPC",main = "Distribuci?n de IPPC",freq = FALSE,ylim = c(0,0.035))
+hist(Ind_2_Sev2,col="azure2",xlab="IPSE",main = "Distribuci?n de IPSE",freq = FALSE,ylim = c(0,0.035))
+hist(Ind_2_SU2,col="azure2",xlab="IPSU",main = "Distribuci?n de IPSU",freq = FALSE,ylim = c(0,0.035))
+
+#mtext("?ndices Heuristicos", side = 3, line = -1, outer = TRUE)
+mtext("?ndices AFM de Cali", side = 3, line = 0, outer = TRUE,cex=0.7,font=0.6)
+mtext("?ndices AFM de Palmira", side = 3, line = -16.8, outer = TRUE,cex=0.7,font=0.6)
+mtext("?ndices AFM de Cali y Palmira", side = 3, line = -33, outer = TRUE,cex=0.7,font=0.6)
+
+
+#Cali y palmira
+hist(Ind_2_severidad3,col="azure2",xlab="IPRG",main = "Distribuci?n de IPRG",freq = FALSE,ylim = c(0,0.035))
+hist(Ind_2_Proba3,col="azure2",xlab="IPPC",main = "Distribuci?n de IPPC",freq = FALSE,ylim = c(0,0.035))
+hist(Ind_2_Sev3,col="azure2",xlab="IPSE",main = "Distribuci?n de IPSE",freq = FALSE,ylim = c(0,0.035))
+hist(Ind_2_SU3,col="azure2",xlab="IPSU",main = "Distribuci?n de IPSU",freq = FALSE,ylim = c(0,0.035))
+dev.off()
+
+```
+
+
+
+
+
+
+
+
+
+
